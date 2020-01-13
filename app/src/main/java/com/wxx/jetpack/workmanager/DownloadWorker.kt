@@ -54,7 +54,7 @@ class DownloadWorker(context: Context, workerParameters: WorkerParameters) :
                             bytesCopied += bytes
                             bytes = inputData.read(buffer)
                             val progress = bytesCopied / step
-                            logd("进度：${progress.toInt()}")
+                            //logd("进度：${progress.toInt()}")
                             setProgress(workDataOf("progress" to progress.toInt()))
                         }
                     }

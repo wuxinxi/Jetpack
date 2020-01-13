@@ -1,11 +1,16 @@
 package com.wxx.jetpack
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Looper
 import android.view.View
+import androidx.lifecycle.Observer
 import androidx.work.*
 import com.wxx.jetpack.base.BaseActivity
+import com.wxx.jetpack.util.logd
+import com.wxx.jetpack.util.loge
 import com.wxx.jetpack.workmanager.DownloadWorker
 import kotlinx.android.synthetic.main.activity_main.*
 import java.util.concurrent.TimeUnit
@@ -18,11 +23,24 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         normal_work.setOnClickListener(this)
         schedule_work.setOnClickListener(this)
         constraint_work.setOnClickListener(this)
+
+        val intent = Intent(this, MainActivity1::class.java).apply {
+            putExtra("name", "吴唐人")
+            putExtra("default", "安徽亳州")
+        }
+        startActivity(intent)
+
+//        val callIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:18682188964"))
+//        val activities: List<ResolveInfo> =
+//            packageManager.queryIntentActivities(callIntent, PackageManager.MATCH_DEFAULT_ONLY)
+//        val isIntentSafe = activities.isNotEmpty()
+
+
     }
 
     override fun onClick(v: View) {
-        val apkUrl1 = "http://192.168.0.105/media/apk/ApiDemos.apk"
-        val apkUrl = "http://192.168.1.70/media/apk/ftp.apk"
+        val apkUrl = "http://192.168.0.105/media/apk/ApiDemos.apk"
+        val apkUrl1 = "http://192.168.1.70/media/apk/ftp.apk"
         val apkPath = Environment.getExternalStorageDirectory().absolutePath + "/" + "apk"
         val data = Data.Builder()
             .putString("apkUrl", apkUrl)
@@ -30,21 +48,30 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             .build()
         when (v.id) {
             R.id.normal_work -> {
+                loge("normal_work")
                 //执行单个任务
                 val downRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
                     .setInputData(data)
                     .build()
+                //取消所有任务
+                //WorkManager.getInstance(this).cancelAllWork()
+                //取消单个任务
+                //WorkManager.getInstance(this).cancelWorkById(downRequest.id)
                 WorkManager.getInstance(this).enqueue(downRequest)
-
-//                val lifecycleOwner: LifecycleOwner=LifecycleOwner()
-//                WorkManager.getInstance(this).getWorkInfoByIdLiveData(downRequest.id)
-//                    .observe(lifecycleOwner, Observer { workInfo: WorkInfo? ->
-//                        if (workInfo != null) {
-//
-//                        }
-//                    })
+                WorkManager.getInstance(this).getWorkInfoByIdLiveData(downRequest.id)
+                    .observe(this, Observer { workInfo: WorkInfo? ->
+                        if (workInfo != null) {
+                            logd(
+                                "主线程：${Looper.getMainLooper() == Looper.myLooper()},进度：${workInfo.progress.getInt(
+                                    "progress",
+                                    0
+                                )}"
+                            )
+                        }
+                    })
             }
             R.id.constraint_work -> {
+                loge("constraint_work")
                 //指明工作何时可以运行
                 val build = Constraints.Builder()
                     .setRequiresCharging(true)//充电的时候时
@@ -69,6 +96,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 WorkManager.getInstance(this).enqueue(downRequest)
             }
             R.id.schedule_work -> {
+                loge("schedule_work")
                 /**
                  * 执行周期任务
                  * repeatInterval:任务周期，至少15分钟
