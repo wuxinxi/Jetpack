@@ -1,8 +1,9 @@
 package com.wxx.jetpack.workmanager
 
 import android.content.Context
-import androidx.work.Worker
+import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.wxx.jetpack.util.logd
 import com.wxx.jetpack.util.loge
 import java.io.BufferedOutputStream
@@ -17,11 +18,11 @@ import java.net.URL
  * TODO：一句话描述
  */
 class DownloadWorker(context: Context, workerParameters: WorkerParameters) :
-    Worker(context, workerParameters) {
+    CoroutineWorker(context, workerParameters) {
 
-    override fun doWork(): Result {
-        val apkUrl= inputData.getString("apkUrl")!!
-        var apkPath=inputData.getString("apkPath")!!
+    override suspend fun doWork(): Result {
+        val apkUrl = inputData.getString("apkUrl")!!
+        var apkPath = inputData.getString("apkPath")!!
         logd("开始执行任务")
         loge(apkPath)
         val apkPathFile = File(apkPath)
@@ -30,11 +31,10 @@ class DownloadWorker(context: Context, workerParameters: WorkerParameters) :
         }
         apkPath += "/apiDemo.apk"
         val res = apkUrl.downloadApk(apkPath)
-        loge("res=$res")
         return if (res.isNullOrEmpty()) Result.retry() else Result.success()
     }
 
-    private fun String.downloadApk(apkPath: String): String? {
+    private suspend fun String.downloadApk(apkPath: String): String? {
         var connection: HttpURLConnection? = null
         try {
             val url = URL(this)
@@ -44,9 +44,8 @@ class DownloadWorker(context: Context, workerParameters: WorkerParameters) :
                 val stream = connection.inputStream
                 stream.use { inputData ->
                     BufferedOutputStream(FileOutputStream(apkPath)).use { output ->
-                        val count=connection.contentLength
-                        val step=count/100.0
-                        loge("总长度：$count")
+                        val count = connection.contentLength
+                        val step = count / 100.0
                         var bytesCopied: Long = 0
                         val buffer = ByteArray(1024 * 2)
                         var bytes = inputData.read(buffer)
@@ -54,9 +53,10 @@ class DownloadWorker(context: Context, workerParameters: WorkerParameters) :
                             output.write(buffer, 0, bytes)
                             bytesCopied += bytes
                             bytes = inputData.read(buffer)
-                            val progress=bytesCopied/step
+                            val progress = bytesCopied / step
                             logd("进度：${progress.toInt()}")
-                           }
+                            setProgress(workDataOf("progress" to progress.toInt()))
+                        }
                     }
                 }
             }
